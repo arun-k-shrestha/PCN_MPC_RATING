@@ -1,3 +1,6 @@
+# Yao's Millionaires' Protocol Implementation
+#source: https://www.youtube.com/watch?v=gf4BawfCY1A
+
 # Example usage
 import random
 import math
@@ -20,7 +23,7 @@ def Yao_Millionaires_Protocol(Intermediate_Node, Sender, Highest, randomNum, ran
     masked_value = Inverse(randomNum, randomNum1) - Sender
     encoded_values = []
 
-    # Generate obfuscated values from 0 to Highest
+    # Generate hidden values from 0 to Highest
     for i in range(0, Highest):
         hidden = reverseInverse(masked_value + i, randomNum1)
         transform = sharedFunction(hidden)
