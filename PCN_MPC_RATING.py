@@ -14,7 +14,8 @@ MAX_CHANNEL_BALANCE = 1000
 MAX_SEND_AMOUNT = 40
 MIN_RATING_THRESHOLD = 0 # MIN_RATING_THRESHOLD and MAX_RATING_THRESHOLD are neighborhood rating range the node is comfortable sharing/updating ratings with
 MAX_RATING_THRESHOLD = 1
-NODE_RATING_UPDATE_PERCENTAGE = 0.9 # range 0-1, 0.9 is 90% chance of updating ratings after each HTLC payment
+NODE_RATING_UPDATE_PERCENTAGE = 0.9 # goes from 0-1 # 0.9 means 90% of the time the node will update its ratings
+MAX_HTLC_ATTEMPTS = 30
 Sucessful_HTLC = 0
 Failed_HTLC = 0
 
