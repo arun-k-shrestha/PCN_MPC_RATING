@@ -1,2 +1,20 @@
+MPC-Based Payment Channel Network Simulation
+This project simulates a Payment Channel Network (PCN) that integrates Secure Multiparty Computation (MPC) for privacy-preserving route verification and a decentralized node rating system to enhance routing reliability. The goal is to evaluate how combining MPC-based liquidity checks with decentralized reputation improves payment success rates and resilience against adversarial or unreliable nodes.
+
+Features
+Synthetic PCN Generation: Create a simulated network of nodes and bidirectional payment channels, reflecting real-world Lightning Network properties.
+
+MPC-Based Route Discovery: Uses MPC (e.g., Yao’s Millionaires’ Problem) to privately verify liquidity along candidate paths before payment initiation.
+
+Decentralized Node Rating: Each node maintains local ratings (binary: success/failure) of other nodes based on transaction outcomes, supporting privacy and flexible trust models.
+
+Adversarial Behavior Simulation: Optionally injects malicious nodes (e.g., non-cooperating, jamming, or unreliable) to test network resilience.
+
+Hybrid Path Selection: Routing algorithm combines MPC feasibility checks with node ratings to select the most reliable paths.
+
+Experimental Analysis: Outputs statistics on payment success rates, routing efficiency, and the impact of rating propagation.
+
+
+
 Each file in this repository can be run individually.
 You can execute any file to observe its specific results or behavior .
