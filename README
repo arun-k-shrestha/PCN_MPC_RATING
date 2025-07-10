@@ -1,4 +1,4 @@
-MPC-Based Payment Channel Network Simulation
+#MPC-Based Payment Channel Network Simulation
 This project simulates a Payment Channel Network (PCN) that integrates Secure Multiparty Computation (MPC) for privacy-preserving route verification and a decentralized node rating system to enhance routing reliability. The goal is to evaluate how combining MPC-based liquidity checks with decentralized reputation improves payment success rates and resilience against adversarial or unreliable nodes.
 
 Features
