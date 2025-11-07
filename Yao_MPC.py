@@ -7,7 +7,7 @@ import math
 
 # Shared transformation used by both parties
 def sharedFunction(x):
-    return (x * 7 + 42) % 997  # Simple linear transformation
+    return (x * 7919 + 42) % 982451653  # Simple linear transformation
 
 # Encodes a number by dividing with the shared randomNum1
 def Inverse(x, r):
@@ -18,12 +18,16 @@ def reverseInverse(x, r):
     return r * x
 
 # Simulated Yao's Millionaires' Protocol 
-def Yao_Millionaires_Protocol(Intermediate_Node, Sender, Highest, randomNum, randomNum1=random.randint(1, 500)):
+# Highest should always set to value greater than the value of Sender
+def Yao_Millionaires_Protocol(Intermediate_Node, Sender, Highest, randomNum, randomNum1=None):
+    if randomNum1 is None:
+        randomNum1 = random.randint(1, 500)
     # Mask the sender's value using an inverse transformation
     masked_value = Inverse(randomNum, randomNum1) - Sender
     encoded_values = []
 
     # Generate hidden values from 0 to Highest
+    # Highest should be the maximum possible balance in the network
     for i in range(0, Highest):
         hidden = reverseInverse(masked_value + i, randomNum1)
         transform = sharedFunction(hidden)
@@ -37,13 +41,15 @@ def Yao_Millionaires_Protocol(Intermediate_Node, Sender, Highest, randomNum, ran
     # Compute the comparison value (check if it's among the encoded values)
     checker = sharedFunction(randomNum) + 1
 
+    #return any(val == checker for val in encoded_values)
+
     # Use safe float comparison
     if any(math.isclose(val, checker, rel_tol=1e-9) for val in encoded_values): # because when x = 0.1 + 0.2 the print(x == 0.3) -> False but print(math.isclose(x, 0.3)) ->  True
         return True  # Sender is richer than Intermediate_Node
     else:
         return False  # Sender is not richer
 
-
+#Highest should always set to value greater than the value of Sender
 # Run multiple times with the same parameters
 # for i in range(10):
 #     result = Yao_Millionaires_Protocol(

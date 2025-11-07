@@ -16,7 +16,8 @@ MIN_RATING_THRESHOLD = 0 # MIN_RATING_THRESHOLD and MAX_RATING_THRESHOLD are nei
 MAX_RATING_THRESHOLD = 1
 NODE_RATING_UPDATE_PERCENTAGE = 0.9 # goes from 0-1 # 0.9 means 90% of the time the node will update its ratings
 MAX_HTLC_ATTEMPTS = 10
-
+Sucessful_HTLC = 0
+Failed_HTLC = 0
 
 # Initialize the graph
 def create_pcn():
@@ -39,26 +40,33 @@ def create_pcn():
     #print(G.edges(data=True))
     return G
 
+G = create_pcn()
+
+
+
 # Mark some nodes as malicious
 def make_malicious(G, percent):
     malicious_nodes = random.sample(list(G.nodes()), int(NUM_NODES * percent))
     for node in malicious_nodes:
         G.nodes[node]["honest"] = False
 
+make_malicious(G,MALICIOUS_PERCENTAGES) #0.5 is 50% malicious nodes
+
+
 def get_MAX_channel_balance(G, u, v):
     return G[u][v]['balance'] if G.has_edge(u, v) else 0
 
-# # Dijkstra that skips excluded edges
-# def find_path_dijkstra(G, sender, receiver, exclude_edges=set()):
-#     G_temp = G.copy()
-#     G_temp.remove_edges_from(exclude_edges)
-#     try:
-#         path = nx.dijkstra_path(G_temp, sender, receiver)
-#         #print(f"Path found: {path}")
-#         return path
-#     except nx.NetworkXNoPath:
-#         #print("No path found.")
-#         return None
+# Dijkstra that skips excluded edges
+def find_path_dijkstra(G, sender, receiver, exclude_edges=set()):
+    G_temp = G.copy()
+    G_temp.remove_edges_from(exclude_edges)
+    try:
+        path = nx.dijkstra_path(G_temp, sender, receiver)
+        #print(f"Path found: {path}")
+        return path
+    except nx.NetworkXNoPath:
+        #print("No path found.")
+        return None
     
 
 def find_path_bfs(G, sender, receiver, exclude_edges=None):
@@ -75,6 +83,34 @@ def find_path_bfs(G, sender, receiver, exclude_edges=None):
         return None
 
 
+def find_valid_path_HTLC_Helper(G, sender, receiver, send_amount, max_attempts=10):
+    visited_edges = set()
+    attempts = 0
+
+    while attempts < max_attempts:
+        path = find_path_bfs(G, sender, receiver, visited_edges)
+        if path is None:
+            return None  # no path left
+        path_is_valid = True
+        for u, v in zip(path, path[1:]):
+            current_node = v
+            sender_ratings = G.nodes[sender]["rating"]
+            if current_node in sender_ratings and (sender_ratings[current_node] <=0):
+                path_is_valid = False
+                break
+            if G[u][v]['balance'] < send_amount:
+                visited_edges.add((u, v))
+                # preserve your per-edge failure accounting
+                global Failed_HTLC
+                Failed_HTLC += 1
+                path_is_valid = False
+                break
+
+        if path_is_valid:
+            return path
+        attempts += 1
+    return None
+
 def find_valid_path_with_mpc(G, sender, receiver, send_amount, max_attempts=MAX_HTLC_ATTEMPTS):
     visited_edges = set()
     attempts = 0
@@ -84,34 +120,33 @@ def find_valid_path_with_mpc(G, sender, receiver, send_amount, max_attempts=MAX_
         if path is None:
             return None  # no path left
         path_is_valid = True
+        # IMPORTANT: don't skip the first edge; use zip
 
         for u, v in zip(path, path[1:]):
-            current_node = v
+            current_node = u
             sender_ratings = G.nodes[sender]["rating"]
-            # print("current_node", current_node)
-            # print("Sender", sender)
-            # print("sender_ratings", sender_ratings)
-            if current_node in sender_ratings and (sender_ratings[current_node] <=MIN_RATING_THRESHOLD):
+            if current_node in sender_ratings and (sender_ratings[current_node] <=0):
                 path_is_valid = False
-                # print("Broken due to low rating")
                 break
 
-            # Cheap short-circuit before MPC (optional; preserves result semantics)
-            bal = G[u][v]['balance']
-            if G.nodes[v]['honest']:
-                # the third parameter in Yao_Millionaires_Protocol should be set to a value greater than the balance
-                if not Yao_MPC.Yao_Millionaires_Protocol(send_amount, bal, MAX_CHANNEL_BALANCE+bal, 40):
-                    visited_edges.add((u, v))
-                    # global Failed_HTLC
-                    # Failed_HTLC += 1
-                    path_is_valid = False
-                    break
+            # # Cheap short-circuit before MPC (optional; preserves result semantics)
+            # bal = G[u][v]['balance']
+            # if G.nodes[v]['honest']:
+            #     # the third parameter in Yao_Millionaires_Protocol should be set to a value greater than the balance
+            #     if not Yao_MPC.Yao_Millionaires_Protocol(send_amount, bal, MAX_SEND_AMOUNT+bal, 40):
+            #         visited_edges.add((u, v))
+            #         # If your channels are effectively bidirectional, you may also:
+            #         # visited_edges.add((v, u))
+            #         path_is_valid = False
+            #         break
         if path_is_valid:
             return path
 
         attempts += 1
 
     return None
+
+
 
 def update_ratings(G):
     for node in G.nodes():
@@ -148,7 +183,7 @@ def hash_preimage(preimage):
 def simulate_htlc_payment(G, path, preimage, amount):
     # if random.random() < NODE_RATING_UPDATE_PERCENTAGE:
     #     update_ratings(G)
-        # print("update",G.nodes(data=True))
+        #print("update",G.nodes(data=True))
     mainSender = path[0]
     H = hash_preimage(preimage)
     # Step 0: Lock funds (forward direction)
@@ -206,7 +241,8 @@ def simulate_htlc_payment(G, path, preimage, amount):
 # print(G.nodes(data=True))
 # print("")
 # print(G.edges(data=True))
-success_rate_mpc_rating  = []
+
+success_rate_rating  = []
 for i in range(13):
     G = create_pcn()
     make_malicious(G,MALICIOUS_PERCENTAGES)
@@ -217,15 +253,15 @@ for i in range(13):
 
     start = time.time()
     for i in range(10000):
-        if i % 1000 == 0:
-            print("Transaction:", i)
+        # if i % 1000 == 0:
+        #     print("Transaction:", i)
         node1 = random.randint(0, NUM_NODES - 1)
         node2 = random.randint(0, NUM_NODES - 1)
         while node1 == node2:
             node2 = random.randint(0, NUM_NODES - 1)
         amount = random.randint(1, MAX_SEND_AMOUNT)
 
-        shortest_path= find_valid_path_with_mpc(G, node1, node2, amount,MAX_HTLC_ATTEMPTS)
+        shortest_path= find_valid_path_HTLC_Helper(G, node1, node2, amount,MAX_HTLC_ATTEMPTS)
         if shortest_path is not None:
             if simulate_htlc_payment(G, shortest_path, generate_preimage(), amount):
                 Sucessful_HTLC += 1
@@ -242,7 +278,9 @@ for i in range(13):
     print("Time taken:", end - start, "seconds")
     print("End of simulation")
     print("===================================")
-    success_rate_mpc_rating.append(round(Sucessful_HTLC / (Sucessful_HTLC + Failed_HTLC) * 100, 1))
+    success_rate_rating.append(round(Sucessful_HTLC / (Sucessful_HTLC + Failed_HTLC) * 100, 1))
     MALICIOUS_PERCENTAGES += 0.025
 
-print("success_rate_mpc_rating= ",success_rate_mpc_rating)
+print("success_rate_rating= ",success_rate_rating)
+
+
